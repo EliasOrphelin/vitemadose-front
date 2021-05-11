@@ -12,10 +12,9 @@ import {classMap} from "lit-html/directives/class-map";
 import {Commune, Departement} from "../state/State";
 import {repeat} from "lit-html/directives/repeat";
 import communeSelectorCss from "./vmd-commune-or-departement-selector.component.scss";
-import globalCss from "../styles/global.scss";
 import {Strings} from "../utils/Strings";
 import {TemplateResult} from "lit-html";
-import {DirectiveFn} from "lit-html/lib/directive";
+import {CSS_Global} from "../styles/ConstructibleStyleSheets";
 
 export type AutocompleteTriggered = { value: string };
 export type CommuneSelected = { commune: Commune };
@@ -34,7 +33,7 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
 
     //language=css
     static styles = [
-        css`${unsafeCSS(globalCss)}`,
+        CSS_Global,
         css`${unsafeCSS(communeSelectorCss)}`,
         css`
         `
@@ -135,25 +134,31 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
 
     render() {
         return html`
-          <form class="autocomplete ${classMap({'_open': this.showDropdown, '_withButton': this.filter})}"
+          <form class="row align-items-center"
                 @submit="${this.handleSubmit}">
-            <input type="search" class="autocomplete-input"
-                   required
-                   @focusin="${() => { this.inputHasFocus = true; window.scroll({ top: this.offsetTop - 32, behavior: 'smooth' }); }}"
-                   @focusout="${this.hideDropdownWhenInputHasNotFocus}"
-                   @keydown="${this.handleKeydown}"
-                   @keyup="${this.valueChanged}"
-                   .value="${this.filter}"
-                   placeholder="Commune, Code postal, Département..."
-            />
-            ${this.filter?html`
-            <button type="button" class="autocomplete-button" @click="${() => { this.filter = ''; this.shadowRoot!.querySelector("input")!.focus(); } }"><span>${SVG_CLOSE_ICON}</span></button>
-            `:html``}
-            ${this.recuperationCommunesEnCours?html`
-              <div class="spinner-border text-primary" style="height: 25px; width: 25px" role="status">
-              </div>
-            `:html``}
-            ${this.showDropdown?html`<ul class="autocomplete-results">${this.renderListItems()}</ul>`:html``}
+            <label for="searchAppointment-searchbar" class="col-sm-24 col-md-auto mb-md-1 label-for-search p-3 ps-1">
+                Localisation :
+            </label>
+            <div class="px-0 col autocomplete ${classMap({'_open': this.showDropdown, '_withButton': this.filter !== ''})}">
+                <input type="search" class="autocomplete-input"
+                    required
+                    @focusin="${() => { this.inputHasFocus = true; window.scroll({ top: this.offsetTop - 32, behavior: 'smooth' }); }}"
+                    @focusout="${this.hideDropdownWhenInputHasNotFocus}"
+                    @keydown="${this.handleKeydown}"
+                    @keyup="${this.valueChanged}"
+                    .value="${this.filter}"
+                    placeholder="Commune, Code postal, Département..."
+                    id="searchAppointment-searchbar"
+                />
+                ${this.filter?html`
+                <button type="button" class="autocomplete-button" @click="${() => { this.filter = ''; this.shadowRoot!.querySelector("input")!.focus(); } }"><span>${SVG_CLOSE_ICON}</span></button>
+                `:html``}
+                ${this.recuperationCommunesEnCours?html`
+                <div class="spinner-border text-primary" style="height: 25px; width: 25px" role="status">
+                </div>
+                `:html``}
+                ${this.showDropdown?html`<ul class="autocomplete-results">${this.renderListItems()}</ul>`:html``}
+            </div>
           </form>
         `;
     }
@@ -203,7 +208,7 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
         // is still at the 'start' of current filter
         // This is intended to detect start of filter string modifications which would invalidate
         // the current autocompleteFilter
-        if(this.filterMatchingAutocomplete && this.filter.includes(this.filterMatchingAutocomplete)) {
+        if(this.filterMatchingAutocomplete && !this.filter.startsWith(this.filterMatchingAutocomplete)) {
             this.filterMatchingAutocomplete = undefined;
         }
 
@@ -239,10 +244,12 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
             if(!filterMatchedAnAutocomplete) {
                 this.communesDisponibles = [];
             }
+        }
 
-            if (this.$autoCompleteResults) {
-                this.$autoCompleteResults.scrollTop = 0;
-            }
+        this.filtrerDepartementsAffichees();
+
+        if (this.$autoCompleteResults) {
+            this.$autoCompleteResults.scrollTop = 0;
         }
     }
 
@@ -318,7 +325,7 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
       return html`<li
         class="autocomplete-result"
         role="option"
-        aria-selected="${index === 0}"
+        aria-selected="${index === 0 && this.departementsAffiches.length === 0}"
         @click="${() => this.communeSelected(commune)}"
         >
           <span class="zipcode">${commune.codePostal}</span> - ${commune.nom}

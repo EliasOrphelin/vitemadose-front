@@ -1,4 +1,4 @@
-import {ISODateString, WeekDay} from "../utils/Dates";
+import {DateString, ISODateString, WeekDay} from "../utils/Dates";
 import {Strings} from "../utils/Strings";
 
 export type CodeTrancheAge = 'plus75ans';
@@ -26,9 +26,10 @@ const VMD_BASE_URL = USE_RAW_GITHUB
   : "https://vitemadose.gitlab.io/vitemadose"
 
 
+export type TypePlateforme = "Doctolib"|"Maiia"|"Ordoclic"|"Keldoc"|"Pandalab"|"Mapharma";
 export type Plateforme = {
     // Should be the same than PLATEFORMES' key
-    code: string;
+    code: TypePlateforme;
     logo: string;
     nom: string;
     // Should we do promotion of this plateform ? for example on home screen ?
@@ -37,14 +38,15 @@ export type Plateforme = {
     website: string;
     // Used for specific styling on logos, see for example _searchAppointment.scss
     styleCode: string;
+    highlightEnabled: boolean;
 };
-export const PLATEFORMES: Record<string, Plateforme> = {
-    'Doctolib': { code: 'Doctolib', logo: 'logo_doctolib.png', nom: 'Doctolib', promoted: true,  website: 'https://www.doctolib.fr/',            styleCode: '_doctolib'},
-    'Maiia':    { code: 'Maiia',    logo: 'logo_maiia.png',    nom: 'Maiia',    promoted: true,  website: 'https://www.maiia.com/',              styleCode: '_maiia'},
-    'Ordoclic': { code: 'Ordoclic', logo: 'logo_ordoclic.png', nom: 'Ordoclic', promoted: true,  website: 'https://covid-pharma.fr/',            styleCode: '_ordoclic'},
-    'Keldoc':   { code: 'Keldoc',   logo: 'logo_keldoc.png',   nom: 'Keldoc',   promoted: true,  website: 'https://www.keldoc.com/',             styleCode: '_keldoc'},
-    'Pandalab': { code: 'Pandalab', logo: 'logo_pandalab.png', nom: 'Pandalab', promoted: false, website: 'https://masante.pandalab.eu/welcome', styleCode: '_pandalab'},
-    'Mapharma': { code: 'Mapharma', logo: 'logo_mapharma.png', nom: 'Mapharma', promoted: true,  website: 'https://mapharma.net/login',          styleCode: '_mapharma'},
+export const PLATEFORMES: Record<TypePlateforme, Plateforme> = {
+    'Doctolib': { code: 'Doctolib', logo: 'logo_doctolib.png', nom: 'Doctolib', promoted: true,  website: 'https://www.doctolib.fr/',            highlightEnabled: true,  styleCode: '_doctolib'},
+    'Maiia':    { code: 'Maiia',    logo: 'logo_maiia.png',    nom: 'Maiia',    promoted: true,  website: 'https://www.maiia.com/',              highlightEnabled: false, styleCode: '_maiia'},
+    'Ordoclic': { code: 'Ordoclic', logo: 'logo_ordoclic.png', nom: 'Ordoclic', promoted: true,  website: 'https://covid-pharma.fr/',            highlightEnabled: false, styleCode: '_ordoclic'},
+    'Keldoc':   { code: 'Keldoc',   logo: 'logo_keldoc.png',   nom: 'Keldoc',   promoted: true,  website: 'https://www.keldoc.com/',             highlightEnabled: false, styleCode: '_keldoc'},
+    'Pandalab': { code: 'Pandalab', logo: 'logo_pandalab.png', nom: 'Pandalab', promoted: false, website: 'https://masante.pandalab.eu/welcome', highlightEnabled: false, styleCode: '_pandalab'},
+    'Mapharma': { code: 'Mapharma', logo: 'logo_mapharma.png', nom: 'Mapharma', promoted: true,  website: 'https://mapharma.net/login',          highlightEnabled: false, styleCode: '_mapharma'},
     // Beware: if you add a new plateform, don't forget to update 'hardcoded' (indexable) content
     // in index.html page, referencing the list of supported plateforms
 };
@@ -69,6 +71,18 @@ export const TYPES_LIEUX: {[k in TypeLieu]: string} = {
     "general-practitioner": 'Médecin généraliste',
 };
 export type BusinessHours = Record<WeekDay,string>;
+export type VaccineType = string;
+export type AppointmentPerVaccine = {
+    vaccine_type: VaccineType;
+    appointments: number;
+};
+export type AppointmentSchedule = {
+    name: string;
+    from: DateString; // Should be better to have ISODateString here
+    to: DateString; // Should be better to have ISODateString here
+    // appointments_per_vaccine: AppointmentPerVaccine[];
+    total: number;
+};
 export type Lieu = {
     appointment_count: number;
     departement: CodeDepartement;
@@ -76,7 +90,8 @@ export type Lieu = {
     nom: string;
     url: string;
     appointment_by_phone_only: boolean;
-    plateforme: string;
+    appointment_schedules: AppointmentSchedule[]|undefined;
+    plateforme: TypePlateforme;
     prochain_rdv: ISODateString|null;
     metadata: {
         address: string;
@@ -84,7 +99,7 @@ export type Lieu = {
         business_hours: BusinessHours|undefined
     },
     type: TypeLieu;
-    vaccine_type: string
+    vaccine_type: VaccineType
 };
 function transformLieu(rawLieu: any): Lieu {
     return {
@@ -132,6 +147,9 @@ export function typeActionPour(lieuAffichable: LieuAffichableAvecDistance): 'act
         return 'inactif';
     }
 }
+export function isLieuActif(lieuAffichable: LieuAffichableAvecDistance) {
+    return ['actif-via-tel', 'actif-via-plateforme'].includes(typeActionPour(lieuAffichable));
+}
 
 function convertDepartementForSort(codeDepartement: CodeDepartement) {
     switch(codeDepartement) {
@@ -158,11 +176,21 @@ export type Commune = {
     latitude: number|undefined;
     longitude: number|undefined;
 };
+
+export type StatsByDate = {
+    dates: ISODateString[],
+    total_centres_disponibles: number[],
+    total_centres: number[],
+    total_appointments: number[]
+}
+
 // Permet de convertir un nom de departement en un chemin d'url correct (remplacement des caractères
 // non valides comme les accents ou les espaces)
 export const libelleUrlPathDeCommune = (commune: Commune) => {
     return Strings.toReadableURLPathValue(commune.nom);
 }
+
+export type SearchType = "standard"|"chronodose";
 
 export class State {
     public static current = new State();
@@ -223,6 +251,19 @@ export class State {
         return deps.find(dep => dep.code_departement === code) || State.DEPARTEMENT_VIDE;
     }
 
+    private _statsByDate: StatsByDate|undefined = undefined;
+    async statsByDate(): Promise<StatsByDate> {
+        if(this._statsByDate !== undefined) {
+            return Promise.resolve(this._statsByDate);
+        } else {
+            const resp = await fetch(`${VMD_BASE_URL}/stats_by_date.json`)
+            const statsByDate: StatsByDate = await resp.json()
+
+            this._statsByDate = statsByDate;
+            return statsByDate;
+        }
+    }
+
     private _communeAutocompleteTriggers: string[]|undefined = undefined;
     async communeAutocompleteTriggers(basePath: string): Promise<string[]> {
         if(this._communeAutocompleteTriggers !== undefined) {
@@ -277,17 +318,13 @@ export class State {
         } else {
             const resp = await fetch(`${VMD_BASE_URL}/stats.json`)
             const statsParDepartements: Record<CodeDepartement|'tout_departement', StatLieu> = await resp.json()
+            const { tout_departement: global, ...parDepartements } = statsParDepartements
 
             const statsLieu = {
-                parDepartements: Object.entries(statsParDepartements)
-                    .filter(([dpt, stats]: [CodeDepartement|"tout_departement", StatLieu]) => dpt !== 'tout_departement')
-                    .reduce((statsParDept, [dpt, stats]: [CodeDepartement, StatLieu]) => {
-                        statsParDepartements[dpt] = stats;
-                        return statsParDepartements;
-                    }, {} as StatsLieuParDepartement),
+                parDepartements,
                 global: {
-                    ...statsParDepartements['tout_departement'],
-                    proportion: Math.round(statsParDepartements['tout_departement'].disponibles * 10000 / statsParDepartements['tout_departement'].total)/100
+                    ...global,
+                    proportion: Math.round(global.disponibles * 10000 / global.total)/100
                 }
             };
             this._statsLieu = statsLieu;

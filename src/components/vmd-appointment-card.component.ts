@@ -1,4 +1,12 @@
-import {css, customElement, html, LitElement, property, unsafeCSS} from 'lit-element';
+import {
+    css,
+    customElement,
+    html,
+    LitElement,
+    property,
+    PropertyValues, query,
+    unsafeCSS
+} from 'lit-element';
 import {classMap} from "lit-html/directives/class-map";
 import {
     Lieu,
@@ -11,10 +19,10 @@ import {
 import {Router} from "../routing/Router";
 import {Dates} from "../utils/Dates";
 import appointmentCardCss from "./vmd-appointment-card.component.scss";
-import globalCss from "../styles/global.scss";
 import {Strings} from "../utils/Strings";
 import {TemplateResult} from "lit-html";
-import {styleMap} from "lit-html/directives/style-map";
+import {CSS_Global} from "../styles/ConstructibleStyleSheets";
+import tippy from "tippy.js";
 
 type LieuCliqueContext = {lieu: Lieu};
 export type LieuCliqueCustomEvent = CustomEvent<LieuCliqueContext>;
@@ -24,13 +32,17 @@ export class VmdAppointmentCardComponent extends LitElement {
 
     //language=css
     static styles = [
-        css`${unsafeCSS(globalCss)}`,
+        CSS_Global,
         css`${unsafeCSS(appointmentCardCss)}`,
         css`
         `
     ];
 
     @property({type: Object, attribute: false}) lieu!: LieuAffichableAvecDistance;
+    @property({type: String}) theme!: string;
+    @property() highlightable!: boolean;
+
+    @query("#chronodose-label") $chronodoseLabel!: HTMLSpanElement;
 
     constructor() {
         super();
@@ -57,7 +69,12 @@ export class VmdAppointmentCardComponent extends LitElement {
               distance = this.lieu.distance.toFixed(1)
             }
 
-            let cardConfig: {cardLink:(content: TemplateResult) => TemplateResult, estCliquable: boolean, disabledBG: boolean, actions: TemplateResult|undefined, libelleDateAbsente: string };
+            let cardConfig: {
+                highlighted: boolean
+                cardLink:(content: TemplateResult) => TemplateResult,
+                estCliquable: boolean, disabledBG: boolean,
+                actions: TemplateResult|undefined, libelleDateAbsente: string
+            };
             let typeLieu = typeActionPour(this.lieu);
             if(typeLieu === 'actif-via-plateforme' || typeLieu === 'inactif-via-plateforme') {
                 let specificCardConfig: { disabledBG: boolean, libelleDateAbsente: string, libelleBouton: string, typeBouton: 'btn-info'|'btn-primary', onclick: ()=>void };
@@ -78,7 +95,9 @@ export class VmdAppointmentCardComponent extends LitElement {
                         onclick: () => this.prendreRdv()
                     };
                 }
+
                 cardConfig = {
+                    highlighted: this.highlightable && !specificCardConfig.disabledBG,
                     estCliquable: true,
                     disabledBG: specificCardConfig.disabledBG,
                     libelleDateAbsente: specificCardConfig.libelleDateAbsente,
@@ -108,6 +127,7 @@ export class VmdAppointmentCardComponent extends LitElement {
                 };
             } else if(typeLieu === 'actif-via-tel') {
                 cardConfig = {
+                    highlighted: false,
                     estCliquable: true,
                     disabledBG: false,
                     libelleDateAbsente: 'Réservation tél uniquement',
@@ -123,6 +143,7 @@ export class VmdAppointmentCardComponent extends LitElement {
                 };
             } else if(typeLieu === 'inactif') {
                 cardConfig = {
+                    highlighted: false,
                     estCliquable: false,
                     disabledBG: true,
                     libelleDateAbsente: 'Aucun rendez-vous',
@@ -134,9 +155,18 @@ export class VmdAppointmentCardComponent extends LitElement {
             }
 
             return cardConfig.cardLink(html`
-            <div class="card rounded-3 mb-5 p-4 ${classMap({clickable: cardConfig.estCliquable, 'bg-disabled': cardConfig.disabledBG })}"
+            <div class="card rounded-3 mb-5  ${classMap({
+              highlighted: cardConfig.highlighted, clickable: cardConfig.estCliquable, 
+              'bg-disabled': cardConfig.disabledBG,
+              'search-standard': this.theme==='standard',
+              'search-chronodose': this.theme==='chronodose'
+                })}"
                  title="${cardConfig.estCliquable ? this.lieu.url : ''}">
-                <div class="card-body">
+                ${cardConfig.highlighted?html`
+                <div class="row align-items-center highlight-text">
+                  <span id="chronodose-label" title="Les chronodoses sont des doses de vaccin réservables à court terme sans critères d'éligibilité"><i class="bi vmdicon-lightning-charge-fill"></i>Chronodoses disponibles<i class="bi vmdicon-lightning-charge-fill"></i></span>
+                </div>`:html``}
+                <div class="card-body p-4">
                     <div class="row align-items-center ">
                         <div class="col">
                             <h5 class="card-title">
@@ -177,6 +207,13 @@ export class VmdAppointmentCardComponent extends LitElement {
                 </div>
             </div>
             `);
+    }
+
+    updated(changedProperties: PropertyValues) {
+        super.updated(changedProperties);
+        tippy(this.$chronodoseLabel, {
+            content: (el) => el.getAttribute('title')!
+        })
     }
 
     connectedCallback() {
