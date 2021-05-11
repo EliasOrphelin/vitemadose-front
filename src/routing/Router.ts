@@ -41,7 +41,7 @@ class Routing {
 
         this.declareRoutes({
             pathPattern: `/`, analyticsViewName: 'home',
-            viewContent: (params) => (subViewSlot) =>
+            viewContent: () => (subViewSlot) =>
                 html`<vmd-home>${subViewSlot}</vmd-home>`
         });
         this.declareRoutes({
@@ -74,12 +74,12 @@ class Routing {
         });
         this.declareRoutes({
             pathPattern: `/centres`, analyticsViewName: 'centres',
-            viewContent: (params) => (subViewSlot) =>
+            viewContent: () => (subViewSlot) =>
                 html`<vmd-lieux>${subViewSlot}</vmd-lieux>`
         });
         this.declareRoutes({
             pathPattern: `/apropos`, analyticsViewName: 'a_propos',
-            viewContent: (params) => (subViewSlot) =>
+            viewContent: () => (subViewSlot) =>
                 html`<vmd-apropos>${subViewSlot}</vmd-apropos>`
         });
 
