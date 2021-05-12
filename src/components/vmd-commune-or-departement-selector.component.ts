@@ -89,7 +89,7 @@ export class VmdCommuneOrDepartmentSelectorComponent extends LitElement {
 
     private filtrerCommunesAffichees() {
         // /!\ important note : this is important to have the same implementation of toFullTextSearchableString()
-        // function here, than the one used in communes-import.js tooling
+        // function here, than the one used in communes-import.mjs tooling
         const fullTextSearchableQuery = Strings.toFullTextSearchableString(this.filter)
 
         this.communesAffichees = this.communesDisponibles?this.communesDisponibles.filter(commune => {
